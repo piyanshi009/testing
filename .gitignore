@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+.venv
+pip-wheel-metadata/
+
+# React / Node (Frontend)
+heart-frontend/node_modules/
+heart-frontend/.pnp
+heart-frontend/.pnp.js
+heart-frontend/coverage/
+heart-frontend/build/
+heart-frontend/.DS_Store
+heart-frontend/.env.local
+heart-frontend/.env.development.local
+heart-frontend/.env.test.local
+heart-frontend/.env.production.local
+heart-frontend/npm-debug.log*
+heart-frontend/yarn-debug.log*
+heart-frontend/yarn-error.log*
+
+# General
+.DS_Store
+.env
+.vscode/
+.idea/
+*.swp
+*.bak
