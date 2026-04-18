@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { auth } from "./firebase";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  updateProfile
+} from "firebase/auth";
 import { motion, AnimatePresence } from "framer-motion";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from "recharts";
 import "./App.css";
 import heartHero from "./assets/heart-hero.png";
+import logoV4 from "./assets/logo-v4.png";
 
 const SpeedometerGauge = ({ value, color }) => {
   const radius = 80;
@@ -34,7 +43,7 @@ const SpeedometerGauge = ({ value, color }) => {
         />
       </svg>
       <div className="speedometer-content">
-        <motion.h2 
+        <motion.h2
           className="speedometer-value"
           style={{ color }}
           initial={{ opacity: 0, y: 10 }}
@@ -54,7 +63,7 @@ function App() {
   const [currentView, setCurrentView] = useState("welcome"); // "welcome", "auth", "form", "results"
   const [authMode, setAuthMode] = useState("login");
   const [formStep, setFormStep] = useState(1);
-  
+
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     age: "", sex: "1", cp: "", trestbps: "", chol: "",
@@ -62,6 +71,49 @@ function App() {
     oldpeak: "", slope: "", ca: "", thal: "",
   });
   const [result, setResult] = useState(null);
+
+  // Auth State
+  const [user, setUser] = useState(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [history, setHistory] = useState([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+
+  // Load History from Local Storage (Scoped by User)
+  useEffect(() => {
+    const key = user ? `heart_history_${user.uid}` : "heart_history_guest";
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        setHistory(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse history", e);
+        setHistory([]);
+      }
+    } else {
+      setHistory([]);
+    }
+    setHistoryLoaded(true);
+  }, [user]);
+
+  // Save History to Local Storage (Scoped by User)
+  useEffect(() => {
+    if (historyLoaded) {
+      const key = user ? `heart_history_${user.uid}` : "heart_history_guest";
+      localStorage.setItem(key, JSON.stringify(history));
+    }
+  }, [history, user, historyLoaded]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser && currentView === "auth") {
+        setCurrentView("form");
+      }
+    });
+    return () => unsubscribe();
+  }, [currentView]);
 
   useEffect(() => {
     document.body.setAttribute('data-theme', theme);
@@ -75,45 +127,84 @@ function App() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleAuth = (e) => {
+  const handleAuth = async (e) => {
     e.preventDefault();
-    setCurrentView("form");
-  };
-
-  const handleLogout = () => {
-    setCurrentView("welcome");
-    setAuthMode("login");
-    setFormStep(1);
-    setFormData({
-      age: "", sex: "1", cp: "", trestbps: "", chol: "",
-      fbs: "0", restecg: "", thalach: "", exang: "0",
-      oldpeak: "", slope: "", ca: "", thal: "",
-    });
-    setResult(null);
-  };
-
-  const handleSubmit = async (e) => {
-    if (e) e.preventDefault();
     setLoading(true);
-    setResult(null);
-
     try {
-      const res = await axios.post("http://127.0.0.1:8000/predict", {
-        ...Object.fromEntries(
-          Object.entries(formData).map(([k, v]) => [k, Number(v)])
-        ),
-      });
-
-      setTimeout(() => {
-        setResult(res.data);
-        setLoading(false);
-        setCurrentView("results");
-      }, 1200);
-    } catch {
-      alert("Backend error ❌ Please ensure API is running.");
+      if (authMode === "signup") {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(userCredential.user, { displayName: fullName });
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+      setCurrentView("form");
+    } catch (error) {
+      alert(error.message);
+    } finally {
       setLoading(false);
     }
   };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setCurrentView("welcome");
+      setAuthMode("login");
+      setFormStep(1);
+      setFormData({
+        age: "", sex: "1", cp: "", trestbps: "", chol: "",
+        fbs: "0", restecg: "", thalach: "", exang: "0",
+        oldpeak: "", slope: "", ca: "", thal: "",
+      });
+      setResult(null);
+      setEmail("");
+      setPassword("");
+      setFullName("");
+    } catch (error) {
+      alert("Error signing out ❌");
+    }
+  };
+
+ const handleSubmit = async (e) => {
+  if (e) e.preventDefault();
+  setLoading(true);
+  setResult(null);
+
+  try {
+    // ✅ Convert all values to numbers
+    const payload = Object.fromEntries(
+      Object.entries(formData).map(([k, v]) => [k, Number(v)])
+    );
+
+    console.log("Sending data:", payload);
+
+    // ✅ FIX: model_type added
+    const res = await axios.post(
+  "http://127.0.0.1:9000/predict",
+  payload
+ );
+
+    console.log("Response:", res.data);
+
+    const newRecord = {
+      ...res.data,
+      date: new Date().toLocaleString(),
+      metrics: { ...formData }
+    };
+
+    setTimeout(() => {
+      setHistory([newRecord, ...history]);
+      setResult(res.data);
+      setLoading(false);
+      setCurrentView("results");
+    }, 800);
+
+  } catch (err) {
+    console.error(err);
+    alert("Backend error ❌ Make sure FastAPI is running on port 8000");
+    setLoading(false);
+  }
+};
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -126,7 +217,7 @@ function App() {
   };
 
   const renderWelcome = () => (
-    <motion.div 
+    <motion.div
       className="welcome-container"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -134,7 +225,7 @@ function App() {
       key="welcome"
     >
       <div className="welcome-content">
-        <motion.div 
+        <motion.div
           className="welcome-text"
           initial={{ x: -50, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -142,10 +233,10 @@ function App() {
         >
           <h1 className="welcome-title">HeartCare AI Monitoring</h1>
           <p className="welcome-subtitle">
-            Next-generation cardiovascular risk assessment powered by advanced machine learning. 
+            Next-generation cardiovascular risk assessment powered by advanced machine learning.
             Get clinical-grade insights in real-time.
           </p>
-          
+
           <div className="welcome-features">
             <div className="feature-item">
               <span className="feature-icon">⚡</span>
@@ -157,8 +248,8 @@ function App() {
             </div>
           </div>
 
-          <button 
-            className="submit-btn welcome-btn" 
+          <button
+            className="submit-btn welcome-btn"
             onClick={() => setCurrentView("auth")}
             style={{ width: 'fit-content', padding: '1.2rem 3.5rem' }}
           >
@@ -178,7 +269,7 @@ function App() {
   );
 
   const renderAuth = () => (
-    <motion.div 
+    <motion.div
       className="login-container"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -204,27 +295,50 @@ function App() {
                 exit={{ opacity: 0, height: 0 }}
                 className="input-group"
               >
-                <input type="text" placeholder="Full Name" className="custom-input" required />
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  className="custom-input"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                />
               </motion.div>
             )}
           </AnimatePresence>
 
           <div className="input-group">
-            <input type="email" placeholder="Email Address" className="custom-input" required autoComplete="email" />
+            <input
+              type="email"
+              placeholder="Email Address"
+              className="custom-input"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
           <div className="input-group">
-            <input type="password" placeholder="Password" className="custom-input" required autoComplete={authMode === "login" ? "current-password" : "new-password"} />
+            <input
+              type="password"
+              placeholder="Password"
+              className="custom-input"
+              required
+              autoComplete={authMode === "login" ? "current-password" : "new-password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
 
-          <button type="submit" className="submit-btn" style={{ marginTop: "1rem" }}>
-            {authMode === "login" ? "Access Dashboard" : "Create Account"}
+          <button type="submit" className="submit-btn" style={{ marginTop: "1rem" }} disabled={loading}>
+            {loading ? "Processing..." : (authMode === "login" ? "Access Dashboard" : "Create Account")}
           </button>
         </form>
 
         <div style={{ marginTop: "2.5rem", color: "var(--text-muted)", fontSize: "1rem", textAlign: "center" }}>
           {authMode === "login" ? "New here? " : "Existing member? "}
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}
             style={{ background: "none", border: "none", color: "var(--primary-color)", fontWeight: "700", cursor: "pointer", textDecoration: "underline" }}
           >
@@ -239,7 +353,7 @@ function App() {
     const fieldsStep1 = [
       { name: "age", label: "Age", type: "number", min: "1", max: "120" },
       { name: "sex", label: "Sex", type: "select", options: [{ v: "1", l: "Male" }, { v: "0", l: "Female" }] },
-      { name: "tresbps", label: "Blood Pressure (mm Hg)", type: "number", key: "trestbps" },
+     { name: "trestbps", label: "Blood Pressure (mm Hg)", type: "number" },
       { name: "chol", label: "Cholesterol (mg/dl)", type: "number" },
       { name: "cp", label: "Chest Pain Type (0-3)", type: "number", min: "0", max: "3" },
       { name: "fbs", label: "Fasting Blood Sugar > 120", type: "select", options: [{ v: "1", l: "True" }, { v: "0", l: "False" }] },
@@ -273,11 +387,11 @@ function App() {
               <div className={`step-indicator ${formStep === 2 ? 'active' : ''}`} />
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); if(formStep === 1) setFormStep(2); else handleSubmit(); }}>
-              <motion.div 
-                className="form-grid" 
-                variants={containerVariants} 
-                initial="hidden" 
+            <form onSubmit={(e) => { e.preventDefault(); if (formStep === 1) setFormStep(2); else handleSubmit(); }}>
+              <motion.div
+                className="form-grid"
+                variants={containerVariants}
+                initial="hidden"
                 animate="show"
                 key={`step-${formStep}`}
               >
@@ -285,23 +399,25 @@ function App() {
                   <motion.div className="input-group" key={field.name} variants={itemVariants}>
                     <label className="input-label" htmlFor={field.name}>{field.label}</label>
                     {field.type === "select" ? (
-                      <select 
-                        id={field.name} name={field.name} className="custom-select" 
+                      <select
+                        id={field.name} name={field.name} className="custom-select"
                         value={formData[field.name]} onChange={handleChange}
                       >
                         {field.options.map(opt => <option key={opt.v} value={opt.v}>{opt.l}</option>)}
                       </select>
                     ) : (
                       <input
-                        id={field.name} name={field.key || field.name} type={field.type} className="custom-input"
-                        value={formData[field.key || field.name]} onChange={handleChange} required
-                        min={field.min} max={field.max} step={field.step}
-                        placeholder={field.label}
+                        id={field.name}
+                        name={field.name}
+                        type={field.type}
+                        className="custom-input"
+                        value={formData[field.name]}
+                        onChange={handleChange}
                       />
                     )}
                   </motion.div>
                 ))}
-                
+
                 <div className="submit-btn-container" style={{ gridColumn: '1/-1', display: 'flex', gap: '1.5rem', marginTop: '2rem' }}>
                   {formStep === 2 && (
                     <button type="button" className="nav-btn" onClick={() => setFormStep(1)} style={{ flex: 1, border: '1px solid var(--glass-border)' }}>
@@ -323,7 +439,7 @@ function App() {
   const renderResults = () => {
     if (!result) return null;
 
-    const isRisk = result.prediction === 1;
+    const isRisk = result.result.includes("High");
     const riskColor = isRisk ? "var(--danger-color)" : "var(--success-color)";
     const riskStatusText = isRisk ? "High Risk Detected" : "Low Risk Profile";
     const riskGaugeValue = parseFloat((result.probability * 100).toFixed(1));
@@ -342,8 +458,8 @@ function App() {
         </header>
 
         <div className="result-container" style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-          
-          <motion.div 
+
+          <motion.div
             className="glass-card result-top-card"
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -357,8 +473,8 @@ function App() {
                 Your analysis indicates a <span style={{ color: riskColor, fontWeight: 800 }}>{riskGaugeValue}%</span> risk factor.
               </p>
               <p style={{ color: "var(--text-muted)", marginTop: "1rem", lineHeight: 1.6 }}>
-                {isRisk 
-                  ? "Our AI detected clinical markers consistent with high cardiovascular risk. Immediate consultation with a cardiologist is highly recommended." 
+                {isRisk
+                  ? "Our AI detected clinical markers consistent with high cardiovascular risk. Immediate consultation with a cardiologist is highly recommended."
                   : "Excellent news! Your clinical metrics are within safe parameters. Continue your healthy routines to maintain this baseline."}
               </p>
             </div>
@@ -369,7 +485,7 @@ function App() {
           </motion.div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem' }}>
-            <motion.div 
+            <motion.div
               className="glass-card"
               initial={{ x: -30, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
@@ -382,7 +498,7 @@ function App() {
                     <XAxis dataKey="name" stroke="var(--text-muted)" />
                     <YAxis stroke="var(--text-muted)" />
                     <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ background: 'var(--bg-dark-secondary)', border: '1px solid var(--glass-border)', borderRadius: '12px' }} />
-                    <Legend verticalAlign="top" height={36}/>
+                    <Legend verticalAlign="top" height={36} />
                     <Bar dataKey="Patient" name="Current Profile" fill={riskColor} radius={[6, 6, 0, 0]} />
                     <Bar dataKey="Baseline" name="Healthy Baseline" fill="var(--text-muted)" opacity={0.3} radius={[6, 6, 0, 0]} />
                   </BarChart>
@@ -390,7 +506,7 @@ function App() {
               </div>
             </motion.div>
 
-            <motion.div 
+            <motion.div
               className="glass-card"
               initial={{ x: 30, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
@@ -418,8 +534,8 @@ function App() {
             </motion.div>
           </div>
 
-          <button 
-            className="nav-btn" 
+          <button
+            className="nav-btn"
             style={{ width: 'fit-content', padding: '1rem 3rem', alignSelf: 'center', background: 'var(--input-bg)', border: '1px solid var(--glass-border)' }}
             onClick={() => {
               setResult(null);
@@ -435,7 +551,7 @@ function App() {
   }
 
   const renderAbout = () => (
-    <motion.div 
+    <motion.div
       key="about" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
       className="about-container"
     >
@@ -474,6 +590,63 @@ function App() {
     </motion.div>
   );
 
+  const renderHistory = () => (
+    <motion.div 
+      key="history" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+      className="history-container"
+    >
+      <header className="header-section">
+        <h1 className="header-title">Diagnostic History</h1>
+        <p className="header-subtitle">Your previous cardiovascular risk assessments and clinical snapshots.</p>
+      </header>
+
+      <div className="history-list" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '900px', margin: '0 auto' }}>
+        {history.length === 0 ? (
+          <div className="glass-card" style={{ textAlign: 'center', padding: '4rem' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>📂</div>
+            <h3>No Assessment History</h3>
+            <p style={{ color: 'var(--text-muted)' }}>Complete your first biometric profile to see results here.</p>
+            <button className="submit-btn" style={{ width: 'fit-content', marginTop: '2rem' }} onClick={() => setCurrentView("form")}>
+              Start Assessment
+            </button>
+          </div>
+        ) : (
+          history.map((item, index) => (
+            <motion.div 
+              key={index} 
+              className="glass-card history-item"
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: index * 0.1 }}
+              style={{ padding: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+            >
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>{item.date}</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: item.prediction === 1 ? 'var(--danger-color)' : 'var(--success-color)' }}>
+                  {item.result} ({parseFloat((item.probability * 100).toFixed(1))}%)
+                </div>
+                <div style={{ marginTop: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                  Age: {item.metrics.age} | BP: {item.metrics.trestbps} | Chol: {item.metrics.chol}
+                </div>
+              </div>
+              <button 
+                className="nav-btn" 
+                style={{ background: 'var(--input-bg)', border: '1px solid var(--glass-border)' }}
+                onClick={() => {
+                  setResult(item);
+                  setFormData(item.metrics);
+                  setCurrentView("results");
+                }}
+              >
+                View Details
+              </button>
+            </motion.div>
+          ))
+        )}
+      </div>
+    </motion.div>
+  );
+
   return (
     <div className="app-container">
       <div className="bg-shape bg-shape-1"></div>
@@ -481,20 +654,28 @@ function App() {
 
       <nav className="nav-bar">
         <div className="logo" style={{ cursor: "pointer" }} onClick={() => setCurrentView("welcome")}>
-          <div style={{ background: 'var(--primary-color)', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 900 }}>H</div>
+          <img src={logoV4} alt="HeartCare AI Logo" className="logo-img" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
           HeartCare AI
         </div>
-        
+
         <div className="nav-links">
+          {user && (
+            <span className="user-badge" style={{ marginRight: '1rem', color: 'var(--primary-color)', fontWeight: 600 }}>
+              {user.displayName || user.email}
+            </span>
+          )}
           {currentView !== "welcome" && (
             <button onClick={() => setCurrentView("welcome")} className="nav-btn">Home</button>
           )}
-          <button onClick={() => setCurrentView("about")} className="nav-btn">About</button>
-          
-          {currentView !== "auth" && currentView !== "welcome" && currentView !== "about" && (
-            <button onClick={handleLogout} className="nav-btn">Logout</button>
+          {user && (
+            <button onClick={() => setCurrentView("history")} className="nav-btn">History</button>
           )}
-          
+          <button onClick={() => setCurrentView("about")} className="nav-btn">About</button>
+
+          {(currentView !== "auth" && currentView !== "welcome" && currentView !== "about") || user ? (
+            <button onClick={handleLogout} className="nav-btn">Logout</button>
+          ) : null}
+
           <button onClick={toggleTheme} className="theme-toggle">
             {theme === "dark" ? "☀️" : "🌙"}
           </button>
@@ -508,12 +689,14 @@ function App() {
           {currentView === "form" && renderForm()}
           {currentView === "results" && renderResults()}
           {currentView === "about" && renderAbout()}
+          {currentView === "history" && renderHistory()}
         </AnimatePresence>
       </main>
 
       <footer className="footer">
-        <div style={{ opacity: 0.5, marginBottom: '1rem' }}>⚡ Powered by Medical Gradient Boosting</div>
-        © {new Date().getFullYear()} HeartCare AI Advanced Systems.
+        <div className="footer-tagline">
+          <span className="sparkle">✨</span> Smart predictions for a healthier life
+        </div>
       </footer>
     </div>
   );
