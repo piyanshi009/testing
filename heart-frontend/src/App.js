@@ -9,7 +9,7 @@ import {
   updateProfile
 } from "firebase/auth";
 import { motion, AnimatePresence } from "framer-motion";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import "./App.css";
 import heartHero from "./assets/heart-hero.png";
 import logoV4 from "./assets/logo-v4.png";
@@ -463,10 +463,6 @@ const renderResults = () => {
   const riskColor = isRisk
     ? "var(--danger-color)"
     : "var(--success-color)";
-
-  const riskStatusText = isRisk
-    ? "High Risk Detected"
-    : "Low Risk Profile";
 
   const riskGaugeValue = parseFloat(
     ((result?.probability || 0) * 100).toFixed(1)
