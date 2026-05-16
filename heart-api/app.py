@@ -21,22 +21,23 @@ app.add_middleware(
 
 MODELS_DIR = "models"
 
-MODEL_KNN_PATH = os.path.join(
+MODEL_RF_PATH = os.path.join(
     MODELS_DIR,
-    "heart_knn_pipeline.pkl"
+    "heart_rf_model.pkl"
 )
 
 models = {}
+
 try:
-    if os.path.exists(MODEL_KNN_PATH):
+    if os.path.exists(MODEL_RF_PATH):
 
-        with open(MODEL_KNN_PATH, "rb") as f:
-            models["knn"] = pickle.load(f)
+        with open(MODEL_RF_PATH, "rb") as f:
+            models["rf"] = pickle.load(f)
 
-        logging.info("KNN Pipeline loaded successfully")
+        logging.info("Random Forest Model loaded successfully")
 
     else:
-        logging.error("KNN model file not found")
+        logging.error("RF model file not found")
 
 except Exception as e:
     logging.error(f"Error loading model: {e}")
@@ -47,15 +48,16 @@ def home():
 
     return {
         "message": "Heart Disease Prediction API Running 🚀",
-        "model_used": "KNN",
+        "model_used": "Random Forest",
         "features_used": selected_features
     }
+
 
 @app.post("/predict")
 def predict(data: InputData):
 
     try:
-        model = models["knn"]
+        model = models["rf"]
 
         # preprocess input
         input_data = preprocess_input(data)
@@ -67,16 +69,17 @@ def predict(data: InputData):
         probs = model.predict_proba(input_data)[0]
         probability = float(probs[prediction])
 
-# correct label mapping
+        # correct label mapping
         if prediction == 0:
             result_text = "High Risk ⚠️"
         else:
             result_text = "Low Risk ✅"
+
         return {
             "prediction": int(prediction),
             "result": result_text,
             "probability": round(probability, 3),
-            "model_used": "KNN",
+            "model_used": "Random Forest",
             "features_used": selected_features
         }
 

@@ -11,18 +11,15 @@ HeartCare AI is a premium, professional-grade medical dashboard designed to prov
 - **Dynamic Data Visualization**: Interactive charts for vital sign monitoring and health trends.
 - **Multi-step Diagnostic Flow**: User-friendly form management with validation and progress tracking.
 - **Professional Health Insights**: Context-aware clinical recommendations based on prediction results.
-- **Secure-look Auth Flow**: Integrated mock login for a complete application experience.
+- **Authentication Flow**: Real user authentication integrated with Firebase.
 
 ## 🛠️ Tech Stack
 
 ### Frontend
 - **Framework**: React 19
 - **Styling**: Vanilla CSS (Custom properties / Variables)
-- **UI Components**: Material UI (MUI)
 - **Animations**: Framer Motion
-- **Icons**: Lucide React & MUI Icons
 - **Charts**: Recharts
-- **Notifications**: Notistack
 - **Authentication**: Firebase
 
 ### Backend
@@ -45,10 +42,11 @@ testing/
 ├── heart-frontend/       # React Frontend
 │   ├── public/
 │   ├── src/
-│   │   ├── components/   # Reusable UI components
-│   │   ├── layouts/      # Dashboard and Page layouts
-│   │   ├── App.js        # Main logic and routing
-│   │   └── index.css     # Global design system
+│   │   ├── assets/       # Images and logos
+│   │   ├── App.js        # Main application logic and UI
+│   │   ├── App.css       # Component-specific styles
+│   │   ├── index.css     # Global design system
+│   │   └── firebase.js   # Firebase configuration
 │   ├── .env              # Environment variables
 │   └── package.json
 └── .venv/                # Python Virtual Environment

@@ -666,7 +666,7 @@ const renderResults = () => {
             >
               <div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>{item.date}</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: item.prediction === 1 ? 'var(--danger-color)' : 'var(--success-color)' }}>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: item.prediction === 0 ? 'var(--danger-color)' : 'var(--success-color)' }}>
                   {item.result} ({parseFloat((item.probability * 100).toFixed(1))}%)
                 </div>
                 <div style={{ marginTop: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
