@@ -179,10 +179,10 @@ function App() {
     console.log("Sending data:", payload);
 
     // ✅ FIX: model_type added
-    const res = await axios.post(
-  "http://127.0.0.1:9000/predict",
+  const res = await axios.post(
+  "http://127.0.0.1:8000/predict",
   payload
- );
+);
 
     console.log("Response:", res.data);
 
@@ -201,7 +201,7 @@ function App() {
 
   } catch (err) {
     console.error(err);
-    alert("Backend error ❌ Make sure FastAPI is running on port 8000");
+   alert("Backend connection failed ❌");
     setLoading(false);
   }
 };
@@ -436,19 +436,63 @@ function App() {
     );
   };
 
-  const renderResults = () => {
-    if (!result) return null;
+const renderResults = () => {
 
-    const isRisk = result.result.includes("High");
-    const riskColor = isRisk ? "var(--danger-color)" : "var(--success-color)";
-    const riskStatusText = isRisk ? "High Risk Detected" : "Low Risk Profile";
-    const riskGaugeValue = parseFloat((result.probability * 100).toFixed(1));
+  // ✅ Prevent crash if backend response is missing
+  if (!result || !result.result) {
+    return (
+      <div className="glass-card" style={{ textAlign: "center", padding: "3rem" }}>
+        <h2>⚠️ No Result Available</h2>
+        <p style={{ color: "var(--text-muted)", marginTop: "1rem" }}>
+          Backend response is missing or invalid.
+        </p>
 
-    const comparisonData = [
-      { name: 'BP', unit: 'mmHg', Patient: Number(formData.trestbps) || 0, Baseline: 120 },
-      { name: 'Chol', unit: 'mg/dL', Patient: Number(formData.chol) || 0, Baseline: 200 },
-      { name: 'Max HR', unit: 'bpm', Patient: Number(formData.thalach) || 0, Baseline: 155 },
-    ];
+        <button
+          className="submit-btn"
+          style={{ marginTop: "2rem" }}
+          onClick={() => setCurrentView("form")}
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  const isRisk = result?.result?.includes("High");
+
+  const riskColor = isRisk
+    ? "var(--danger-color)"
+    : "var(--success-color)";
+
+  const riskStatusText = isRisk
+    ? "High Risk Detected"
+    : "Low Risk Profile";
+
+  const riskGaugeValue = parseFloat(
+    ((result?.probability || 0) * 100).toFixed(1)
+  );
+
+  const comparisonData = [
+    {
+      name: 'BP',
+      unit: 'mmHg',
+      Patient: Number(formData.trestbps) || 0,
+      Baseline: 120
+    },
+    {
+      name: 'Chol',
+      unit: 'mg/dL',
+      Patient: Number(formData.chol) || 0,
+      Baseline: 200
+    },
+    {
+      name: 'Max HR',
+      unit: 'bpm',
+      Patient: Number(formData.thalach) || 0,
+      Baseline: 155
+    },
+  ];
+
 
     return (
       <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>

@@ -20,16 +20,23 @@ app.add_middleware(
 )
 
 MODELS_DIR = "models"
-MODEL_LR_PATH = os.path.join(MODELS_DIR, "heart_lr_pipeline.pkl")
+
+MODEL_KNN_PATH = os.path.join(
+    MODELS_DIR,
+    "heart_knn_pipeline.pkl"
+)
 
 models = {}
-
 try:
-    if os.path.exists(MODEL_LR_PATH):
-        with open(MODEL_LR_PATH, "rb") as f:
-            models["logistic_regression"] = pickle.load(f)
+    if os.path.exists(MODEL_KNN_PATH):
 
-        logging.info("Logistic Regression Pipeline loaded")
+        with open(MODEL_KNN_PATH, "rb") as f:
+            models["knn"] = pickle.load(f)
+
+        logging.info("KNN Pipeline loaded successfully")
+
+    else:
+        logging.error("KNN model file not found")
 
 except Exception as e:
     logging.error(f"Error loading model: {e}")
@@ -37,37 +44,45 @@ except Exception as e:
 
 @app.get("/")
 def home():
+
     return {
         "message": "Heart Disease Prediction API Running 🚀",
+        "model_used": "KNN",
         "features_used": selected_features
     }
 
-
 @app.post("/predict")
 def predict(data: InputData):
-    try:
-        model = models["logistic_regression"]
 
-        # utility function call
+    try:
+        model = models["knn"]
+
+        # preprocess input
         input_data = preprocess_input(data)
 
-        probs = model.predict_proba(input_data)[0]
-        probability = float(probs[1])
+        # prediction
+        prediction = model.predict(input_data)[0]
 
-        if probability > 0.3:
+        # probability
+        probs = model.predict_proba(input_data)[0]
+        probability = float(probs[prediction])
+
+# correct label mapping
+        if prediction == 0:
             result_text = "High Risk ⚠️"
-            prediction = 1
         else:
             result_text = "Low Risk ✅"
-            prediction = 0
-
         return {
-            "prediction": prediction,
+            "prediction": int(prediction),
             "result": result_text,
             "probability": round(probability, 3),
+            "model_used": "KNN",
             "features_used": selected_features
         }
 
     except Exception as e:
         logging.error(str(e))
-        return {"error": str(e)}
+
+        return {
+            "error": str(e)
+        }

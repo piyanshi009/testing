@@ -26,26 +26,31 @@ HeartCare AI is a premium, professional-grade medical dashboard designed to prov
 
 ### Backend
 - **Framework**: FastAPI (Python)
-- **Machine Learning**: Scikit-learn (Random Forest & Decision Tree models)
+- **Machine Learning**: Scikit-learn (Logistic Regression Pipeline)
 - **Data Processing**: NumPy & Pandas
 - **Serialization**: Pickle
 
 ## 📁 Project Structure
 
 ```bash
-pbl_project/
+testing/
 ├── heart-api/            # FastAPI Backend
+│   ├── models/           # Contains ML models
+│   │   ├── heart_lr_pipeline.pkl # Logistic Regression Pipeline
+│   │   └── features.pkl  # Extracted features dictionary
 │   ├── app.py            # Main API entry point
-│   ├── heart_model.pkl   # Trained ML model
-│   └── scaler.pkl        # Data scaler for normalization
+│   ├── models.py         # Pydantic data models
+│   └── utils.py          # Utility functions for API
 ├── heart-frontend/       # React Frontend
+│   ├── public/
 │   ├── src/
 │   │   ├── components/   # Reusable UI components
 │   │   ├── layouts/      # Dashboard and Page layouts
 │   │   ├── App.js        # Main logic and routing
 │   │   └── index.css     # Global design system
+│   ├── .env              # Environment variables
 │   └── package.json
-└── venv/                 # Python Virtual Environment
+└── .venv/                # Python Virtual Environment
 ```
 
 ## ⚙️ Setup & Installation
@@ -54,7 +59,7 @@ pbl_project/
 Navigate to the `heart-api` directory:
 ```bash
 cd heart-api
-..\venv\Scripts\activate  # On Windows
+..\.venv\Scripts\activate  # On Windows
 pip install -r requirements.txt  # If requirements.txt exists
 uvicorn app:app --reload --port 8000
 ```
@@ -68,7 +73,7 @@ npm start
 ```
 
 ## 📊 ML Model Details
-The system utilizes a Random Forest Classifier trained on clinical datasets. It processes features such as:
+The system utilizes a Logistic Regression Pipeline trained on clinical datasets. It processes features such as:
 - **Biometrics**: Age, Sex, Resting BP, Cholesterol.
 - **Clinical Tests**: Chest Pain Type (CP), FBS, RestECG, Oldpeak, Slope.
 - **Advanced Indicators**: Thalach, Exang, CA, Thal.

@@ -3,12 +3,21 @@ import pickle
 import os
 
 MODELS_DIR = "models"
-FEATURES_PATH = os.path.join(MODELS_DIR, "features.pkl")
 
+FEATURES_PATH = os.path.join(
+    MODELS_DIR,
+    "features.pkl"
+)
+
+# Load selected features
 with open(FEATURES_PATH, "rb") as f:
     selected_features = pickle.load(f)
 
+print("Loaded Features:", selected_features)
+
+
 def preprocess_input(data):
+
     input_dict = {
         "age": data.age,
         "sex": data.sex,
@@ -25,8 +34,16 @@ def preprocess_input(data):
         "thal": data.thal
     }
 
+    # Convert to dataframe
     df_input = pd.DataFrame([input_dict])
 
+    print("Before Feature Selection:")
+    print(df_input)
+
+    # Keep only selected features
     df_input = df_input[selected_features]
+
+    print("After Feature Selection:")
+    print(df_input)
 
     return df_input
