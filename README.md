@@ -23,10 +23,11 @@ HeartCare AI is a premium, professional-grade medical dashboard designed to prov
 - **Icons**: Lucide React & MUI Icons
 - **Charts**: Recharts
 - **Notifications**: Notistack
+- **Authentication**: Firebase
 
 ### Backend
 - **Framework**: FastAPI (Python)
-- **Machine Learning**: Scikit-learn (Logistic Regression Pipeline)
+- **Machine Learning**: Scikit-learn (K-Nearest Neighbors Pipeline)
 - **Data Processing**: NumPy & Pandas
 - **Serialization**: Pickle
 
@@ -36,7 +37,7 @@ HeartCare AI is a premium, professional-grade medical dashboard designed to prov
 testing/
 ├── heart-api/            # FastAPI Backend
 │   ├── models/           # Contains ML models
-│   │   ├── heart_lr_pipeline.pkl # Logistic Regression Pipeline
+│   │   ├── heart_knn_pipeline.pkl # K-Nearest Neighbors Pipeline
 │   │   └── features.pkl  # Extracted features dictionary
 │   ├── app.py            # Main API entry point
 │   ├── models.py         # Pydantic data models
@@ -73,7 +74,7 @@ npm start
 ```
 
 ## 📊 ML Model Details
-The system utilizes a Logistic Regression Pipeline trained on clinical datasets. It processes features such as:
+The system utilizes a K-Nearest Neighbors Pipeline trained on clinical datasets. It processes features such as:
 - **Biometrics**: Age, Sex, Resting BP, Cholesterol.
 - **Clinical Tests**: Chest Pain Type (CP), FBS, RestECG, Oldpeak, Slope.
 - **Advanced Indicators**: Thalach, Exang, CA, Thal.
